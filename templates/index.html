@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Parallel Machine Scheduling Optimizer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background-color: #0f0f23;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 12px;
+    overflow-x: hidden;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #16213e; border-radius: 5px; }
+::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a5a; }
+
+.group {
+    background: #1a1a2e;
+    border: 2px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 12px;
+}
+.group-title {
+    font-weight: bold;
+    font-size: 13px;
+    color: #64ffda;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #2a2a4a;
+}
+
+label { color: #e0e0e0; font-size: 12px; display: block; margin-bottom: 3px; }
+input, select, textarea {
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: #e0e0e0;
+    font-size: 12px;
+    outline: none;
+    width: 100%;
+}
+input:focus, select:focus { border-color: #64ffda; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #16213e;
+    border-radius: 4px;
+    font-size: 11px;
+}
+th {
+    background: #1a1a2e;
+    color: #64ffda;
+    padding: 6px 8px;
+    text-align: center;
+    border-bottom: 2px solid #2a2a4a;
+    font-weight: bold;
+    font-size: 12px;
+}
+td {
+    padding: 4px 8px;
+    text-align: center;
+    border-bottom: 1px solid #2a2a4a;
+    color: #e0e0e0;
+}
+td input { background: transparent; border: none; text-align: center; color: #e0e0e0; padding: 2px; }
+td input:focus { background: #1a1a2e; border: 1px solid #64ffda; border-radius: 2px; }
+
+button {
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-weight: bold;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+button:hover { background: #1976D2; }
+button:active { background: #0D47A1; }
+button:disabled { background: #424242; color: #757575; cursor: not-allowed; }
+button.btn-run { background: #64ffda; color: #0f0f23; min-height: 45px; font-size: 15px; }
+button.btn-run:hover { background: #1de9b6; }
+button.btn-run-all { background: #4CAF50; min-height: 45px; font-size: 15px; }
+button.btn-run-all:hover { background: #388E3C; }
+button.btn-export { background: #FF9800; }
+button.btn-export:hover { background: #F57C00; }
+button.btn-clear { background: #f44336; }
+button.btn-clear:hover { background: #d32f2f; }
+button.btn-sm { padding: 6px 14px; font-size: 11px; }
+
+.header {
+    background: linear-gradient(90deg, #1a1a2e, #16213e);
+    border: 2px solid #64ffda;
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.header-title { color: #64ffda; font-size: 18px; font-weight: bold; }
+.header-subtitle { color: #b0bec5; font-size: 11px; margin-top: 4px; }
+.header-stats { text-align: right; }
+.header-stats div { color: #2196F3; font-size: 11px; font-weight: bold; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.flex-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.flex-grow { flex: 1; }
+.mt-5 { margin-top: 5px; }
+.mt-10 { margin-top: 10px; }
+.mb-10 { margin-bottom: 10px; }
+.hidden { display: none !important; }
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.tabs input[type="radio"] { display: none; }
+.tabs label {
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: 0;
+    background: #16213e;
+    color: #e0e0e0;
+    flex: 1;
+    text-align: center;
+}
+.tabs input[type="radio"]:checked + label {
+    background: #64ffda;
+    color: #0f0f23;
+}
+.tabs label:hover:not(:has(input:checked)) { background: #2a2a4a; }
+.tab-content { display: none; padding: 15px; background: #1a1a2e; border: 1px solid #2a2a4a; border-top: none; border-radius: 0 0 4px 4px; }
+.tabs input#tab1:checked ~ #content1,
+.tabs input#tab2:checked ~ #content2,
+.tabs input#tab3:checked ~ #content3,
+.tabs input#tab4:checked ~ #content4,
+.tabs input#tab5:checked ~ #content5,
+.tabs input#tab6:checked ~ #content6 { display: block; }
+
+.param-tabs { margin-top: 10px; }
+.param-tabs input[type="radio"] { display: none; }
+.param-tabs label {
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    background: #16213e;
+    color: #e0e0e0;
+    display: inline-block;
+    border-radius: 6px 6px 0 0;
+    margin-right: 2px;
+}
+.param-tabs input[type="radio"]:checked + label { background: #64ffda; color: #0f0f23; }
+.param-content { display: none; padding: 12px; background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 0 4px 4px 4px; }
+.param-tabs input#pga:checked ~ #pga-content,
+.param-tabs input#psa:checked ~ #psa-content,
+.param-tabs input#pts:checked ~ #pts-content { display: block; }
+
+.progress-container { margin: 10px 0; }
+.progress-bar {
+    height: 20px;
+    background: #16213e;
+    border: 2px solid #2a2a4a;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #64ffda, #2196F3);
+    border-radius: 4px;
+    transition: width 0.3s;
+    width: 0%;
+}
+.progress-text { color: #64ffda; font-weight: bold; font-size: 12px; margin-top: 4px; text-align: center; }
+
+.info-bar {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 11px;
+}
+.info-bar .lb { color: #FF9800; font-weight: bold; }
+
+.chart-container { background: #16213e; border: 1px solid #2a2a4a; border-radius: 4px; padding: 3px; margin-bottom: 15px; }
+.chart-container img { width: 100%; height: auto; display: block; }
+
+.result-table th { font-size: 11px; }
+.result-table td { font-size: 11px; }
+
+.details-html { color: #e0e0e0; font-size: 11px; line-height: 1.6; }
+.details-html h2 { color: #64ffda; }
+.details-html h3 { color: #2196F3; margin-top: 10px; }
+.details-html table { margin: 5px 0; }
+.details-html th { padding: 4px 8px; }
+.details-html td { padding: 3px 8px; }
+
+.main-split { display: flex; gap: 15px; }
+.left-panel { width: 420px; min-width: 320px; }
+.right-panel { flex: 1; min-width: 0; }
+</style>
+</head>
+<body>
+
+<div class="header" id="header">
+    <div>
+        <div class="header-title">Pm, h<sub>ij</sub> || C<sub>max</sub> - Parallel Machines with Unavailability</div>
+        <div class="header-subtitle">Metaheuristic Optimization: Genetic Algorithm | Simulated Annealing | Tabu Search &bull; Master Thesis Project &bull; Startup: Manufacturing Cost Reduction</div>
+    </div>
+    <div class="header-stats">
+        <div>Jobs: <span id="statJobs">0</span></div>
+        <div>Machines: <span id="statMachines">3</span></div>
+        <div>Best Makespan: <span id="statBest">--</span></div>
+    </div>
+</div>
+
+<div class="main-split">
+
+<!-- LEFT PANEL -->
+<div class="left-panel" id="leftPanel">
+
+    <!-- Problem Configuration -->
+    <div class="group">
+        <div class="group-title">Problem Configuration</div>
+        <div class="grid-2">
+            <div>
+                <label>Number of Machines:</label>
+                <select id="numMachines">
+                    <script>for(let i=2;i<=100;i++)document.write(`<option${i===3?" selected":""}>${i}</option>`);</script>
+                </select>
+            </div>
+            <div>
+                <label>Number of Jobs:</label>
+                <select id="numJobs">
+                    <script>for(let i=3;i<=1000;i++)document.write(`<option${i===10?" selected":""}>${i}</option>`);</script>
+                </select>
+            </div>
+        </div>
+        <button class="mt-10" id="btnGenerate" style="width:100%">Generate Random Processing Times</button>
+    </div>
+
+    <!-- Job Input -->
+    <div class="group">
+        <div class="group-title">Job Processing Times</div>
+        <div style="max-height:180px;overflow-y:auto;margin-bottom:8px">
+            <table id="jobTable">
+                <thead><tr><th>Job ID</th><th>Processing Time</th><th>Priority</th></tr></thead>
+                <tbody id="jobBody"></tbody>
+            </table>
+        </div>
+        <div class="flex-row">
+            <input type="number" id="jobTimeInput" placeholder="Enter processing time..." class="flex-grow" step="any" min="0">
+            <input type="number" id="jobPriorityInput" placeholder="Priority (1-5)..." style="width:120px" min="1" max="5" step="1">
+            <button class="btn-sm" id="btnAddJob">Add Job</button>
+        </div>
+    </div>
+
+    <!-- Unavailability -->
+    <div class="group">
+        <div class="group-title">Machine Unavailability Periods</div>
+        <div style="color:#ffab00;font-size:11px;padding:4px;margin-bottom:6px">
+            Define periods when machines are unavailable (maintenance, breaks, shifts). Jobs will be scheduled around these periods automatically.
+        </div>
+        <div style="max-height:120px;overflow-y:auto;margin-bottom:8px">
+            <table id="unavailTable">
+                <thead><tr><th>Machine</th><th>Start Time</th><th>End Time</th><th>Reason</th></tr></thead>
+                <tbody id="unavailBody"></tbody>
+            </table>
+        </div>
+        <div class="grid-2" style="margin-bottom:6px">
+            <div>
+                <label>Machine:</label>
+                <select id="unavailMachine"></select>
+            </div>
+            <div>
+                <label>Start:</label>
+                <input type="number" id="unavailStart" value="0" min="0">
+            </div>
+            <div>
+                <label>End:</label>
+                <input type="number" id="unavailEnd" value="10" min="0">
+            </div>
+            <div>
+                <label>Reason:</label>
+                <input type="text" id="unavailReason" placeholder="e.g., Maintenance, Break...">
+            </div>
+        </div>
+        <button style="width:100%;margin-bottom:6px" id="btnAddUnavail">Add Period</button>
+        <div class="flex-row" style="justify-content:space-between">
+            <span style="color:#e0e0e0;font-size:11px">Quick Presets:</span>
+            <button class="btn-sm" id="btnPresetLunch">Lunch Break (All M, 12-13)</button>
+            <button class="btn-sm" id="btnPresetMaint">Maintenance (M1, 0-5)</button>
+        </div>
+    </div>
+
+    <!-- Algorithm Selection -->
+    <div class="group">
+        <div class="group-title">Algorithm Selection</div>
+        <select id="algoSelect" style="margin-bottom:6px">
+            <option value="all">All Algorithms (Compare)</option>
+            <option value="GA">Genetic Algorithm (GA)</option>
+            <option value="SA">Simulated Annealing (SA)</option>
+            <option value="TS">Tabu Search (TS)</option>
+        </select>
+        <div id="algoDesc" style="color:#b0bec5;padding:6px;font-size:11px">
+            Run all three metaheuristics and compare their performance.
+        </div>
+    </div>
+
+    <!-- Algorithm Parameters -->
+    <div class="group param-tabs">
+        <div class="group-title">Algorithm Parameters</div>
+        <input type="radio" name="pgroup" id="pga" checked><label for="pga">Genetic Algorithm</label>
+        <input type="radio" name="pgroup" id="psa"><label for="psa">Simulated Annealing</label>
+        <input type="radio" name="pgroup" id="pts"><label for="pts">Tabu Search</label>
+
+        <div id="pga-content" class="param-content">
+            <div class="grid-2">
+                <div><label>Population Size:</label><input type="number" id="gaPop" value="100" min="20" max="500"></div>
+                <div><label>Generations:</label><input type="number" id="gaGen" value="200" min="50" max="1000"></div>
+                <div><label>Crossover Rate:</label><input type="number" id="gaCx" value="0.85" min="0.1" max="1.0" step="0.05"></div>
+                <div><label>Mutation Rate:</label><input type="number" id="gaMut" value="0.15" min="0.01" max="0.5" step="0.01"></div>
+            </div>
+        </div>
+        <div id="psa-content" class="param-content">
+            <div class="grid-2">
+                <div><label>Initial Temperature:</label><input type="number" id="saTemp" value="1000" min="100" max="10000"></div>
+                <div><label>Cooling Rate:</label><input type="number" id="saCool" value="0.995" min="0.9" max="0.9999" step="0.001"></div>
+                <div><label>Iterations/Temp:</label><input type="number" id="saIter" value="100" min="10" max="500"></div>
+            </div>
+        </div>
+        <div id="pts-content" class="param-content">
+            <div class="grid-2">
+                <div><label>Tabu Tenure:</label><input type="number" id="tsTenure" value="20" min="5" max="100"></div>
+                <div><label>Max Iterations:</label><input type="number" id="tsIter" value="500" min="100" max="2000"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="group">
+        <div class="progress-container hidden" id="progressContainer">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText">Running...</div>
+        </div>
+        <div class="flex-row">
+            <button class="btn-run flex-grow" id="btnRun">Run Selected Algorithm</button>
+            <button class="btn-run-all flex-grow" id="btnRunAll">Run All &amp; Compare</button>
+        </div>
+        <div class="flex-row mt-10">
+            <button class="btn-export flex-grow" id="btnExport" disabled>Export Results</button>
+            <button class="btn-clear flex-grow" id="btnClear">Clear Results</button>
+        </div>
+    </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+
+    <!-- Results Tabs -->
+    <div class="tabs" id="resultTabs">
+        <input type="radio" name="rtab" id="tab1" checked><label for="tab1">Gantt Chart</label>
+        <input type="radio" name="rtab" id="tab2"><label for="tab2">Convergence</label>
+        <input type="radio" name="rtab" id="tab3"><label for="tab3">Comparison</label>
+        <input type="radio" name="rtab" id="tab4"><label for="tab4">Results Table</label>
+        <input type="radio" name="rtab" id="tab5"><label for="tab5">Schedule Details</label>
+        <input type="radio" name="rtab" id="tab6"><label for="tab6">Machine Utilization</label>
+
+        <!-- Gantt Chart -->
+        <div id="content1" class="tab-content">
+            <div id="ganttContent" style="color:#757575;font-size:16px;text-align:center;padding:40px">Run an algorithm to see the Gantt Chart</div>
+        </div>
+
+        <!-- Convergence -->
+        <div id="content2" class="tab-content">
+            <div id="convContent" style="color:#757575;font-size:16px;text-align:center;padding:40px">Run algorithms to see convergence plots</div>
+        </div>
+
+        <!-- Comparison -->
+        <div id="content3" class="tab-content">
+            <div id="compContent" style="color:#757575;font-size:16px;text-align:center;padding:40px">Run all algorithms to see comparison</div>
+        </div>
+
+        <!-- Results Table -->
+        <div id="content4" class="tab-content">
+            <div style="max-height:400px;overflow-y:auto">
+                <table class="result-table" id="resultsTable">
+                    <thead><tr>
+                        <th>Algorithm</th><th>Makespan</th><th>Avg Load</th><th>Max Load</th><th>Unavailable</th><th>Time (s)</th><th>Gap</th>
+                    </tr></thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Schedule Details -->
+        <div id="content5" class="tab-content">
+            <div class="details-html" id="detailsContent" style="max-height:450px;overflow-y:auto;padding:6px">
+                <div style="color:#757575;font-size:16px;text-align:center;padding:30px">Run algorithms to see schedule details</div>
+            </div>
+        </div>
+
+        <!-- Machine Utilization -->
+        <div id="content6" class="tab-content">
+            <div id="utilContent" style="color:#757575;font-size:16px;text-align:center;padding:40px">Run algorithms to see machine utilization</div>
+        </div>
+    </div>
+
+    <!-- Info Bar -->
+    <div class="info-bar">
+        <span>&#8505;&#65039;</span>
+        <span>Lower Bound (LB) = max(max(p<sub>j</sub>), &Sigma;p<sub>j</sub> / m). Optimality Gap = (Makespan - LB) / LB &times; 100%</span>
+        <span class="lb">LB: <span id="lbDisplay">--</span></span>
+    </div>
+</div>
+
+</div>
+
+<script>
+// ===== STATE =====
+let currentResults = {};
+let currentCharts = {};
+let currentProcessingTimes = [];
+let currentPriorities = [];
+let currentNumMachines = 3;
+
+// ===== HELPERS =====
+function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+
+// ===== JOB TABLE =====
+function renderJobTable() {
+    const n = parseInt(document.getElementById('numJobs').value) || 10;
+    const tbody = document.getElementById('jobBody');
+    tbody.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+        const tr = document.createElement('tr');
+        const jid = document.createElement('td');
+        jid.textContent = 'Job ' + (i + 1);
+        const pt = document.createElement('td');
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.step = 'any';
+        inp.min = '0';
+        inp.value = Math.floor(Math.random() * 49) + 1;
+        inp.dataset.index = i;
+        inp.addEventListener('input', updateStats);
+        pt.appendChild(inp);
+        const pr = document.createElement('td');
+        const prip = document.createElement('input');
+        prip.type = 'number';
+        prip.min = '1';
+        prip.max = '5';
+        prip.step = '1';
+        prip.value = '1';
+        prip.dataset.index = i;
+        pr.appendChild(prip);
+        tr.appendChild(jid); tr.appendChild(pt); tr.appendChild(pr);
+        tbody.appendChild(tr);
+    }
+    document.getElementById('statJobs').textContent = n;
+    updateStats();
+}
+
+function getJobData() {
+    const rows = document.querySelectorAll('#jobBody tr');
+    const times = [], priorities = [];
+    rows.forEach(tr => {
+        const inputs = tr.querySelectorAll('input');
+        const t = parseFloat(inputs[0].value);
+        times.push(isNaN(t) ? 0 : t);
+        const p = parseInt(inputs[1].value);
+        priorities.push(isNaN(p) ? 1 : clamp(p, 1, 5));
+    });
+    return { times, priorities };
+}
+
+function updateStats() {
+    const d = getJobData();
+    currentProcessingTimes = d.times;
+    currentPriorities = d.priorities;
+    const n = document.getElementById('numMachines').value;
+    document.getElementById('statMachines').textContent = n;
+}
+
+document.getElementById('numJobs').addEventListener('change', renderJobTable);
+document.getElementById('numMachines').addEventListener('change', () => {
+    updateStats();
+    updateUnavailMachineCombo();
+});
+
+document.getElementById('btnGenerate').addEventListener('click', () => {
+    const rows = document.querySelectorAll('#jobBody tr');
+    rows.forEach(tr => {
+        const inputs = tr.querySelectorAll('input');
+        inputs[0].value = Math.floor(Math.random() * 45) + 5;
+        inputs[1].value = Math.floor(Math.random() * 5) + 1;
+    });
+    updateStats();
+});
+
+document.getElementById('btnAddJob').addEventListener('click', () => {
+    const t = parseFloat(document.getElementById('jobTimeInput').value);
+    const p = parseInt(document.getElementById('jobPriorityInput').value) || 1;
+    if (isNaN(t) || t <= 0) { alert('Please enter a valid positive number.'); return; }
+    const n = parseInt(document.getElementById('numJobs').value);
+    document.getElementById('numJobs').value = n + 1;
+    renderJobTable();
+    const rows = document.querySelectorAll('#jobBody tr');
+    const last = rows[rows.length - 1];
+    last.querySelectorAll('input')[0].value = t;
+    last.querySelectorAll('input')[1].value = clamp(p, 1, 5);
+    updateStats();
+    document.getElementById('jobTimeInput').value = '';
+    document.getElementById('jobPriorityInput').value = '';
+});
+
+// ===== UNAVAILABILITY =====
+function updateUnavailMachineCombo() {
+    const n = parseInt(document.getElementById('numMachines').value) || 3;
+    const sel = document.getElementById('unavailMachine');
+    sel.innerHTML = '';
+    for (let i = 1; i <= n; i++) {
+        const o = document.createElement('option');
+        o.value = 'M' + i; o.textContent = 'M' + i;
+        sel.appendChild(o);
+    }
+}
+
+function getUnavailability() {
+    const n = parseInt(document.getElementById('numMachines').value) || 3;
+    const unavail = {};
+    for (let i = 0; i < n; i++) unavail[i] = [];
+    const rows = document.querySelectorAll('#unavailBody tr');
+    rows.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 4) {
+            const mStr = tds[0].textContent;
+            const s = parseFloat(tds[1].textContent);
+            const e = parseFloat(tds[2].textContent);
+            const r = tds[3].textContent;
+            const idx = parseInt(mStr.replace('M','')) - 1;
+            if (idx >= 0 && idx < n && !isNaN(s) && !isNaN(e)) {
+                unavail[idx].push([s, e, r]);
+            }
+        }
+    });
+    for (let m in unavail) unavail[m].sort((a,b) => a[0]-b[0]);
+    return unavail;
+}
+
+function addUnavailabilityRow(machine, start, end, reason) {
+    const tbody = document.getElementById('unavailBody');
+    const tr = document.createElement('tr');
+    for (let val of [machine, start.toString(), end.toString(), reason]) {
+        const td = document.createElement('td');
+        td.textContent = val;
+        tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+}
+
+document.getElementById('btnAddUnavail').addEventListener('click', () => {
+    const m = document.getElementById('unavailMachine').value;
+    const s = parseInt(document.getElementById('unavailStart').value) || 0;
+    const e = parseInt(document.getElementById('unavailEnd').value) || 10;
+    const r = document.getElementById('unavailReason').value.trim() || 'N/A';
+    if (e <= s) { alert('End time must be greater than start time.'); return; }
+    addUnavailabilityRow(m, s, e, r);
+    document.getElementById('unavailReason').value = '';
+});
+
+document.getElementById('btnPresetLunch').addEventListener('click', () => {
+    const n = parseInt(document.getElementById('numMachines').value) || 3;
+    for (let i = 1; i <= n; i++) addUnavailabilityRow('M' + i, 12, 13, 'Lunch Break');
+});
+
+document.getElementById('btnPresetMaint').addEventListener('click', () => {
+    addUnavailabilityRow('M1', 0, 5, 'Maintenance');
+});
+
+// ===== ALGORITHM SELECTION =====
+const algoDescs = {
+    all: 'Run all three metaheuristics and compare their performance.',
+    GA: 'Evolutionary algorithm inspired by natural selection. Uses population, crossover, and mutation.',
+    SA: 'Probabilistic technique inspired by annealing in metallurgy. Accepts worse solutions to escape local optima.',
+    TS: 'Local search method that uses memory structures (tabu list) to avoid cycling and escape local optima.'
+};
+
+document.getElementById('algoSelect').addEventListener('change', function() {
+    document.getElementById('algoDesc').textContent = algoDescs[this.value] || '';
+});
+
+// ===== API CALL =====
+async function runAlgorithms(algoList) {
+    const d = getJobData();
+    if (!d.times.length || d.times.every(t => t === 0)) {
+        alert('Please enter valid processing times for jobs.');
+        return;
+    }
+
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const btnRun = document.getElementById('btnRun');
+    const btnRunAll = document.getElementById('btnRunAll');
+
+    progressContainer.classList.remove('hidden');
+    progressFill.style.width = '0%';
+    progressText.textContent = 'Running...';
+    btnRun.disabled = true;
+    btnRunAll.disabled = true;
+
+    const payload = {
+        processing_times: d.times,
+        priorities: d.priorities,
+        num_machines: parseInt(document.getElementById('numMachines').value) || 3,
+        algorithms: algoList,
+        params: {
+            unavailability: getUnavailabilityList(),
+            ga_pop: parseInt(document.getElementById('gaPop').value) || 100,
+            ga_gen: parseInt(document.getElementById('gaGen').value) || 200,
+            ga_cx: parseFloat(document.getElementById('gaCx').value) || 0.85,
+            ga_mut: parseFloat(document.getElementById('gaMut').value) || 0.15,
+            sa_temp: parseInt(document.getElementById('saTemp').value) || 1000,
+            sa_cool: parseFloat(document.getElementById('saCool').value) || 0.995,
+            sa_iter: parseInt(document.getElementById('saIter').value) || 100,
+            ts_tenure: parseInt(document.getElementById('tsTenure').value) || 20,
+            ts_iter: parseInt(document.getElementById('tsIter').value) || 500,
+        }
+    };
+
+    try {
+        const resp = await fetch('/api/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.error || 'Server error');
+        }
+
+        const data = await resp.json();
+        currentResults = data.results;
+        currentCharts = data.charts;
+        currentNumMachines = payload.num_machines;
+
+        progressFill.style.width = '100%';
+        progressText.textContent = 'Optimization Complete!';
+
+        displayResults(data);
+
+        setTimeout(() => {
+            progressContainer.classList.add('hidden');
+        }, 2000);
+
+    } catch (err) {
+        alert('Error: ' + err.message);
+        progressContainer.classList.add('hidden');
+    } finally {
+        btnRun.disabled = false;
+        btnRunAll.disabled = false;
+    }
+}
+
+function getUnavailabilityList() {
+    const list = [];
+    const rows = document.querySelectorAll('#unavailBody tr');
+    rows.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 4) {
+            list.push({
+                machine: tds[0].textContent,
+                start: parseFloat(tds[1].textContent) || 0,
+                end: parseFloat(tds[2].textContent) || 0,
+                reason: tds[3].textContent
+            });
+        }
+    });
+    return list;
+}
+
+document.getElementById('btnRun').addEventListener('click', () => {
+    const sel = document.getElementById('algoSelect').value;
+    const algos = sel === 'all' ? ['GA', 'SA', 'TS'] : [sel];
+    runAlgorithms(algos);
+});
+
+document.getElementById('btnRunAll').addEventListener('click', () => {
+    runAlgorithms(['GA', 'SA', 'TS']);
+});
+
+// ===== DISPLAY RESULTS =====
+function displayResults(data) {
+    const results = data.results;
+    const charts = data.charts;
+    const lb = data.lower_bound;
+
+    // Stats
+    const bestAlgo = data.best_algorithm;
+    document.getElementById('statBest').textContent = results[bestAlgo].makespan.toFixed(2);
+    document.getElementById('lbDisplay').textContent = lb.toFixed(2);
+    document.getElementById('btnExport').disabled = false;
+
+    // Gantt Charts
+    const ganttDiv = document.getElementById('ganttContent');
+    ganttDiv.innerHTML = '';
+    for (let name of Object.keys(charts.gantt)) {
+        const container = document.createElement('div');
+        container.className = 'chart-container';
+        const img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + charts.gantt[name];
+        img.alt = 'Gantt Chart - ' + name;
+        container.appendChild(img);
+        ganttDiv.appendChild(container);
+    }
+
+    // Convergence
+    if (charts.convergence) {
+        document.getElementById('convContent').innerHTML =
+            '<div class="chart-container"><img src="data:image/png;base64,' + charts.convergence + '" style="width:100%"></div>';
+    }
+
+    // Comparison
+    if (charts.comparison) {
+        document.getElementById('compContent').innerHTML =
+            '<div class="chart-container"><img src="data:image/png;base64,' + charts.comparison + '" style="width:100%"></div>';
+    }
+
+    // Results Table
+    const tbody = document.getElementById('resultsBody');
+    tbody.innerHTML = '';
+    for (let name of Object.keys(results)) {
+        const r = results[name];
+        const avgLoad = r.machine_loads.reduce((a,b) => a+b, 0) / r.machine_loads.length;
+        const maxLoad = Math.max(...r.machine_loads);
+        const unavailTime = r.total_unavailable_time || 0;
+        const gap = lb > 0 ? ((r.makespan - lb) / lb * 100) : 0;
+
+        const tr = document.createElement('tr');
+        const vals = [
+            r.algorithm,
+            r.makespan.toFixed(2),
+            avgLoad.toFixed(2),
+            maxLoad.toFixed(2),
+            unavailTime.toFixed(2),
+            r.execution_time.toFixed(4),
+            gap.toFixed(2) + '%'
+        ];
+        for (let v of vals) {
+            const td = document.createElement('td');
+            td.textContent = v;
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+    }
+
+    // Schedule Details
+    const detailsDiv = document.getElementById('detailsContent');
+    let html = '<h2>Detailed Schedule Results</h2><hr>';
+
+    // Unavailability info
+    const unavailData = getUnavailabilityList();
+    if (unavailData.length > 0) {
+        html += '<h3 style="color:#ff1744">Machine Unavailability Periods</h3>';
+        html += '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse:collapse;margin-bottom:10px">';
+        html += '<tr style="background:#16213e"><th>Machine</th><th>Start</th><th>End</th><th>Duration</th><th>Reason</th></tr>';
+        for (let u of unavailData) {
+            const dur = (u.end - u.start).toFixed(2);
+            html += `<tr><td>${u.machine}</td><td>${u.start}</td><td>${u.end}</td><td>${dur}</td><td>${u.reason}</td></tr>`;
+        }
+        html += '</table>';
+    }
+
+    for (let name of Object.keys(results)) {
+        const r = results[name];
+        html += `<h3 style="color:#2196F3">${r.algorithm}</h3>`;
+        html += `<p><b>Makespan:</b> ${r.makespan.toFixed(2)} | <b>Time:</b> ${r.execution_time.toFixed(4)}s</p>`;
+        const unavailTime = r.total_unavailable_time || 0;
+        if (unavailTime > 0) html += `<p style="color:#ff5252"><b>Total Unavailable Time:</b> ${unavailTime.toFixed(2)}</p>`;
+
+        html += '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse:collapse;margin-bottom:10px">';
+        html += '<tr style="background:#16213e"><th>Machine</th><th>Jobs (Priority)</th><th>Load</th><th>Idle Time</th></tr>';
+
+        const priorities = r.priorities || [];
+        for (let m = 0; m < r.assignments.length; m++) {
+            const jobs = r.assignments[m];
+            const sorted = [...jobs].sort((a, b) => (priorities[b] || 1) - (priorities[a] || 1));
+            const jobStr = sorted.map(j => `J${j+1}(P${priorities[j] || 1})`).join(', ') || 'None';
+            const load = r.machine_loads[m];
+            const idle = r.makespan - load;
+            html += `<tr><td>M${m+1}</td><td>${jobStr}</td><td>${load.toFixed(2)}</td><td>${idle.toFixed(2)}</td></tr>`;
+        }
+        html += '</table>';
+    }
+    detailsDiv.innerHTML = html;
+
+    // Machine Utilization
+    const utilDiv = document.getElementById('utilContent');
+    utilDiv.innerHTML = '';
+    if (charts.utilization) {
+        for (let name of Object.keys(charts.utilization)) {
+            const container = document.createElement('div');
+            container.className = 'chart-container';
+            const img = document.createElement('img');
+            img.src = 'data:image/png;base64,' + charts.utilization[name];
+            img.alt = 'Utilization - ' + name;
+            container.appendChild(img);
+            utilDiv.appendChild(container);
+        }
+    }
+}
+
+// ===== EXPORT =====
+document.getElementById('btnExport').addEventListener('click', async () => {
+    if (Object.keys(currentResults).length === 0) return;
+    const fmt = confirm('Click OK for JSON, Cancel for CSV') ? 'json' : 'csv';
+    try {
+        const resp = await fetch('/api/export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ format: fmt, results: currentResults })
+        });
+        if (!resp.ok) throw new Error('Export failed');
+        if (fmt === 'csv') {
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'results.csv'; a.click();
+            URL.revokeObjectURL(url);
+        } else {
+            const data = await resp.json();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'results.json'; a.click();
+            URL.revokeObjectURL(url);
+        }
+    } catch (err) {
+        alert('Export error: ' + err.message);
+    }
+});
+
+// ===== CLEAR =====
+document.getElementById('btnClear').addEventListener('click', () => {
+    currentResults = {};
+    currentCharts = {};
+    document.getElementById('statBest').textContent = '--';
+    document.getElementById('lbDisplay').textContent = '--';
+    document.getElementById('btnExport').disabled = true;
+
+    document.getElementById('ganttContent').innerHTML =
+        '<div style="color:#757575;font-size:16px;text-align:center;padding:40px">Run an algorithm to see the Gantt Chart</div>';
+    document.getElementById('convContent').innerHTML =
+        '<div style="color:#757575;font-size:16px;text-align:center;padding:40px">Run algorithms to see convergence plots</div>';
+    document.getElementById('compContent').innerHTML =
+        '<div style="color:#757575;font-size:16px;text-align:center;padding:40px">Run all algorithms to see comparison</div>';
+    document.getElementById('utilContent').innerHTML =
+        '<div style="color:#757575;font-size:16px;text-align:center;padding:40px">Run algorithms to see machine utilization</div>';
+    document.getElementById('resultsBody').innerHTML = '';
+    document.getElementById('detailsContent').innerHTML =
+        '<div style="color:#757575;font-size:16px;text-align:center;padding:30px">Run algorithms to see schedule details</div>';
+});
+
+// ===== INIT =====
+renderJobTable();
+updateUnavailMachineCombo();
+</script>
+
+</body>
+</html>
